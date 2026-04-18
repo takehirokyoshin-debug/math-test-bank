@@ -464,6 +464,5 @@ async def upload_db(file: UploadFile = File(...)):
 if __name__ == "__main__":
     print(f"DB パス: {DB_PATH}")
     print(f"起動後に http://localhost:{PORT}/docs でAPIの動作確認ができます")
-    # ローカルでは reload=True、Render上では環境変数でオフになる
-    is_local = not os.environ.get("RENDER")
-    uvicorn.run("api_server:app", host="0.0.0.0", port=PORT, reload=is_local)
+    # app オブジェクトを直接渡す（モジュールパス解決の問題を回避）
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
