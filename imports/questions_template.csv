@@ -1,0 +1,4 @@
+exam_code,page_no,major_question_no,minor_question_no,unit_name,sub_unit_name,question_type,figure_exists,question_image_path,ocr_raw_text,ocr_clean_text,answer_text,confidence,status
+〇〇中学_2年_2024_2学期期末_002,1,1,(1),一次方程式,一次方程式の解き方,計算,0,,2x+3=7,2x+3=7,x=2,0.9,needs_review
+〇〇中学_2年_2024_2学期期末_002,1,1,(2),一次方程式,一次方程式の利用,文章題,0,,,,x=5,0.7,needs_review
+〇〇中学_2年_2024_2学期期末_002,1,2,(1),比例・反比例,グラフ,記述,1,,,,,0.5,needs_review
