@@ -126,8 +126,27 @@ class QuestionPatch(BaseModel):
 
 
 # ---------------------------------------------------------------
+# GET /  ルートエンドポイント（ChatGPT の疎通確認用）
+# ---------------------------------------------------------------
+
+@app.get("/", summary="APIの疎通確認")
+def root():
+    return {"message": "math_test_bank API is running", "docs": "/docs", "status": "/status"}
+
+@app.head("/", summary="HEADリクエスト対応")
+def root_head():
+    from fastapi.responses import Response
+    return Response()
+
+
+# ---------------------------------------------------------------
 # GET /status  登録件数の確認
 # ---------------------------------------------------------------
+
+@app.head("/status")
+def head_status():
+    from fastapi.responses import Response
+    return Response()
 
 @app.get("/status", summary="登録件数の確認")
 def get_status():
