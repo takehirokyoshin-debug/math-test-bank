@@ -379,6 +379,161 @@ def update_question(question_code: str, body: QuestionPatch):
 
 
 # ---------------------------------------------------------------
+# GET /questions/search  単元・条件で問題を検索
+# ---------------------------------------------------------------
+
+@app.get("/questions/search", summary="問題の検索")
+def search_questions(
+    unit_name:     Optional[str] = None,
+    sub_unit_name: Optional[str] = None,
+    question_type: Optional[str] = None,
+    school_name:   Optional[str] = None,
+    grade_level:   Optional[str] = None,
+    school_year:   Optional[str] = None,
+    status:        Optional[str] = None,
+    limit:         int = 10,
+):
+    """
+    条件に合う問題を返す。
+    例: /questions/search?unit_name=一次関数&limit=5
+    """
+    conditions = []
+    params     = []
+
+    if unit_name:
+        conditions.append("q.unit_name LIKE ?")
+        params.append(f"%{unit_name}%")
+    if sub_unit_name:
+        conditions.append("q.sub_unit_name LIKE ?")
+        params.append(f"%{sub_unit_name}%")
+    if question_type:
+        conditions.append("q.question_type = ?")
+        params.append(question_type)
+    if school_name:
+        conditions.append("e.school_name LIKE ?")
+        params.append(f"%{school_name}%")
+    if grade_level:
+        conditions.append("e.grade_level = ?")
+        params.append(grade_level)
+    if school_year:
+        conditions.append("e.school_year = ?")
+        params.append(school_year)
+    if status:
+        conditions.append("q.status = ?")
+        params.append(status)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    params.append(limit)
+
+    with get_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                q.question_id,
+                q.question_code,
+                e.exam_code,
+                e.school_name,
+                e.grade_level,
+                e.school_year,
+                e.term_name,
+                ep.page_no,
+                q.major_question_no,
+                q.minor_question_no,
+                q.unit_name,
+                q.sub_unit_name,
+                q.question_type,
+                q.figure_exists,
+                q.ocr_clean_text,
+                q.answer_text,
+                q.confidence,
+                q.status
+            FROM questions q
+            JOIN exam_pages ep ON q.page_id  = ep.page_id
+            JOIN exams      e  ON q.exam_id  = e.exam_id
+            {where}
+            ORDER BY q.question_id DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return {"total": len(rows), "questions": [dict(r) for r in rows]}
+
+
+# ---------------------------------------------------------------
+# GET /questions/{question_code}  問題1件の詳細取得
+# ---------------------------------------------------------------
+
+@app.get("/questions/{question_code}", summary="問題の詳細取得")
+def get_question(question_code: str):
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                q.*,
+                e.exam_code,
+                e.school_name,
+                e.grade_level,
+                e.school_year,
+                e.term_name,
+                ep.page_no,
+                ep.page_image_path
+            FROM questions q
+            JOIN exam_pages ep ON q.page_id = ep.page_id
+            JOIN exams      e  ON q.exam_id = e.exam_id
+            WHERE q.question_code = ?
+            """,
+            (question_code,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"question_code '{question_code}' が見つかりません")
+        return dict(row)
+
+
+# ---------------------------------------------------------------
+# GET /exams/list  テスト一覧の取得
+# ---------------------------------------------------------------
+
+@app.get("/exams/list", summary="テスト一覧の取得")
+def list_exams(
+    school_name: Optional[str] = None,
+    grade_level: Optional[str] = None,
+    school_year: Optional[str] = None,
+    limit:       int = 20,
+):
+    conditions = []
+    params     = []
+
+    if school_name:
+        conditions.append("school_name LIKE ?")
+        params.append(f"%{school_name}%")
+    if grade_level:
+        conditions.append("grade_level = ?")
+        params.append(grade_level)
+    if school_year:
+        conditions.append("school_year = ?")
+        params.append(school_year)
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    params.append(limit)
+
+    with get_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                exam_id, exam_code, school_name, grade_level,
+                school_year, term_name, exam_type,
+                source_file_type, page_count, status, imported_at
+            FROM exams
+            {where}
+            ORDER BY imported_at DESC
+            LIMIT ?
+            """,
+            params,
+        ).fetchall()
+        return {"total": len(rows), "exams": [dict(r) for r in rows]}
+
+
+# ---------------------------------------------------------------
 # GET /units  単元辞書の取得
 # ---------------------------------------------------------------
 

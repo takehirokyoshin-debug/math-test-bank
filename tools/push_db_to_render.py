@@ -20,7 +20,7 @@ PROJECT_ROOT = Path(__file__).parent.parent
 DB_PATH      = PROJECT_ROOT / "db" / "math_test_bank.db"
 
 # Render のURL（環境変数 RENDER_URL または直接指定）
-RENDER_URL = os.environ.get("RENDER_URL", "https://your-app.onrender.com")
+RENDER_URL = os.environ.get("RENDER_URL", "https://math-test-bank.onrender.com")
 
 
 def push() -> None:
