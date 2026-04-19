@@ -141,22 +141,24 @@ class QuestionInput(BaseModel):
     question_text:      Optional[str] = None  # GPT用エイリアス（ocr_clean_text と同じ）
     ocr_raw_text:       Optional[str] = None
     ocr_clean_text:     Optional[str] = None
-    figure_description: Optional[str] = None  # 図の説明文・式（GPT-4oが記述）
-    image_base64:       Optional[str] = None  # 受け取るが現在は保存しない
-    answer_text:        Optional[str] = None
-    difficulty:         Optional[int] = None  # 受け取るが現在は保存しない
-    confidence:        Optional[float] = None
-    status:            Optional[str] = "needs_review"
+    figure_description:    Optional[str] = None  # 図の説明文・式（GPT-4oが記述）
+    image_base64:          Optional[str] = None  # 図の画像（300×300 白黒PNG、base64）
+    question_image_base64: Optional[str] = None  # image_base64 のエイリアス
+    answer_text:           Optional[str] = None
+    difficulty:            Optional[int] = None  # 受け取るが現在は保存しない
+    confidence:            Optional[float] = None
+    status:                Optional[str] = "needs_review"
 
 class QuestionPatch(BaseModel):
-    unit_name:          Optional[str] = None
-    sub_unit_name:      Optional[str] = None
-    question_type:      Optional[str] = None
-    ocr_clean_text:     Optional[str] = None
-    figure_description: Optional[str] = None
-    answer_text:        Optional[str] = None
-    confidence:         Optional[float] = None
-    status:             Optional[str] = None
+    unit_name:             Optional[str] = None
+    sub_unit_name:         Optional[str] = None
+    question_type:         Optional[str] = None
+    ocr_clean_text:        Optional[str] = None
+    figure_description:    Optional[str] = None
+    question_image_base64: Optional[str] = None  # 図の画像（base64）
+    answer_text:           Optional[str] = None
+    confidence:            Optional[float] = None
+    status:                Optional[str] = None
 
 
 # ---------------------------------------------------------------
@@ -337,6 +339,8 @@ def register_question(body: QuestionInput):
         major_q_no  = body.major_question_no or body.question_no or "1"
         # question_text / ocr_clean_text エイリアス解決
         clean_text  = body.ocr_clean_text or body.question_text
+        # image_base64 / question_image_base64 エイリアス解決
+        img_b64     = body.question_image_base64 or body.image_base64
 
         # exam_code + page_no から exam_id / page_id を取得
         row = conn.execute(
@@ -389,15 +393,16 @@ def register_question(body: QuestionInput):
                 INSERT INTO questions
                     (exam_id, page_id, major_question_no, minor_question_no,
                      question_code, unit_name, sub_unit_name, question_type,
-                     figure_exists, figure_description, ocr_raw_text, ocr_clean_text,
+                     figure_exists, figure_description, question_image_base64,
+                     ocr_raw_text, ocr_clean_text,
                      answer_text, confidence, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     exam_id, page_id,
                     major_q_no, body.minor_question_no,
                     q_code, body.unit_name, body.sub_unit_name, body.question_type,
-                    body.figure_exists, body.figure_description,
+                    body.figure_exists, body.figure_description, img_b64,
                     body.ocr_raw_text, clean_text,
                     body.answer_text, body.confidence, body.status,
                 ),

@@ -210,6 +210,12 @@
     <div class="figure-area" id="figure-area" hidden>
       <div class="figure-label">📐 図・グラフ</div>
       <div class="figure-description" id="figure-description"></div>
+      <!-- base64画像（幾何図形など） -->
+      <img id="figure-image" src="" alt="図"
+           style="display:none; max-width:300px; max-height:300px;
+                  border:1px solid #c6f6d5; border-radius:8px;
+                  margin:0 auto; display:none; image-rendering:crisp-edges;" />
+      <!-- 関数グラフ（自動描画） -->
       <canvas id="graph-canvas" width="400" height="260" hidden></canvas>
     </div>
 
@@ -355,19 +361,31 @@ function renderQuestion() {
   document.getElementById("question-text").textContent = qText;
 
   // 図エリア
-  const figArea = document.getElementById("figure-area");
-  const canvas  = document.getElementById("graph-canvas");
-  canvas.hidden = true;
+  const figArea  = document.getElementById("figure-area");
+  const canvas   = document.getElementById("graph-canvas");
+  const figImg   = document.getElementById("figure-image");
+  canvas.hidden  = true;
+  figImg.style.display = "none";
 
-  if (q.figure_exists && q.figure_description) {
-    document.getElementById("figure-description").textContent = q.figure_description;
+  if (q.figure_exists) {
     figArea.hidden = false;
 
-    // 関数グラフを自動描画できるか試みる
-    const fns = extractFunctions(q.figure_description);
-    if (fns.length > 0) {
-      canvas.hidden = false;
-      drawGraph(canvas, fns);
+    // 説明文
+    const desc = q.figure_description || "";
+    document.getElementById("figure-description").textContent = desc;
+
+    // ① base64画像があれば表示（幾何図形など）
+    if (q.question_image_base64) {
+      figImg.src = `data:image/png;base64,${q.question_image_base64}`;
+      figImg.style.display = "block";
+    }
+    // ② 関数グラフを自動描画
+    else if (desc) {
+      const fns = extractFunctions(desc);
+      if (fns.length > 0) {
+        canvas.hidden = false;
+        drawGraph(canvas, fns);
+      }
     }
   } else {
     figArea.hidden = true;
