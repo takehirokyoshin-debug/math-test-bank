@@ -11,8 +11,10 @@ GPTs の Action からリクエストを受け取り、SQLite DB を操作する
 ブラウザで確認: http://localhost:8000/docs  (Swagger UI)
 """
 
+import asyncio
 import sqlite3
-from contextlib import contextmanager
+import urllib.request
+from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -36,10 +38,35 @@ DB_PATH  = Path(_db_env) if _db_env else PROJECT_ROOT / "db" / "math_test_bank.d
 
 PORT = int(os.environ.get("PORT", 8000))
 
+# ---------------------------------------------------------------
+# 自己 ping（Render のスリープ防止）
+# ---------------------------------------------------------------
+
+async def _keep_alive():
+    """10分ごとに自分自身の /status を叩いてスリープを防ぐ。Render 環境のみ動作。"""
+    await asyncio.sleep(60)  # 起動直後は待つ
+    while True:
+        try:
+            url = f"http://localhost:{PORT}/status"
+            urllib.request.urlopen(url, timeout=10)
+            print("[keep-alive] ping OK")
+        except Exception as e:
+            print(f"[keep-alive] ping failed: {e}")
+        await asyncio.sleep(600)  # 10分ごと
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Render 環境のみ自己 ping を起動
+    if os.environ.get("RENDER"):
+        asyncio.create_task(_keep_alive())
+        print("[keep-alive] 自己 ping タスクを開始しました（10分間隔）")
+    yield
+
 app = FastAPI(
     title="math_test_bank API",
     description="中学数学 定期テスト問題DB化基盤のローカルAPIサーバー",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # GPTs（外部）からのリクエストを受け付けるため CORS を許可する
