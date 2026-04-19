@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS exams (
     term_name        TEXT,                                  -- 例: 1学期中間 / 2学期期末
     school_year      TEXT,                                  -- 例: 2024
     exam_type        TEXT,                                  -- 例: 中間 / 期末 / 実力
-    source_file_name TEXT    NOT NULL,
+    source_file_name TEXT,                                  -- GPT登録時は省略可
     source_file_type TEXT,                                  -- pdf / jpg / png
-    source_file_path TEXT    NOT NULL,                      -- raw_tests/ 以下の絶対パス
+    source_file_path TEXT,                                  -- raw_tests/ 以下の絶対パス（省略可）
     page_count       INTEGER,
     imported_at      TEXT    DEFAULT CURRENT_TIMESTAMP,
     status           TEXT    DEFAULT 'imported'             -- imported / needs_review / reviewed
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS exam_pages (
     page_id          INTEGER PRIMARY KEY AUTOINCREMENT,
     exam_id          INTEGER NOT NULL,
     page_no          INTEGER NOT NULL,                      -- 1始まり
-    page_image_path  TEXT    NOT NULL,                      -- processed/pages/ 以下のパス
+    page_image_path  TEXT,                                  -- processed/pages/ 以下のパス（GPT登録時は省略可）
     width            INTEGER,
     height           INTEGER,
     ocr_raw_text     TEXT,                                  -- OCRの生出力（未整形）

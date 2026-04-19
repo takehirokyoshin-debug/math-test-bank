@@ -84,12 +84,13 @@ class ExamInput(BaseModel):
     school_name:      Optional[str] = None
     grade_level:      Optional[str] = None
     subject:          Optional[str] = "数学"
+    term:             Optional[str] = None  # GPT用エイリアス（term_name と同じ）
     term_name:        Optional[str] = None
     school_year:      Optional[str] = None
     exam_type:        Optional[str] = None
-    source_file_name: str
+    source_file_name: Optional[str] = None  # GPT登録時は省略可
     source_file_type: Optional[str] = None
-    source_file_path: str
+    source_file_path: Optional[str] = None  # GPT登録時は省略可
     status:           Optional[str] = "imported"
 
 class ExamPatch(BaseModel):
@@ -103,15 +104,19 @@ class ExamPatch(BaseModel):
 class QuestionInput(BaseModel):
     exam_code:         str
     page_no:           int
-    major_question_no: str
+    question_no:       Optional[str] = None  # GPT用エイリアス（major_question_no と同じ）
+    major_question_no: Optional[str] = None
     minor_question_no: Optional[str] = None
     unit_name:         Optional[str] = None
     sub_unit_name:     Optional[str] = None
     question_type:     Optional[str] = None
     figure_exists:     Optional[int] = 0
+    question_text:     Optional[str] = None  # GPT用エイリアス（ocr_clean_text と同じ）
     ocr_raw_text:      Optional[str] = None
     ocr_clean_text:    Optional[str] = None
+    image_base64:      Optional[str] = None  # 受け取るが現在は保存しない
     answer_text:       Optional[str] = None
+    difficulty:        Optional[int] = None  # 受け取るが現在は保存しない
     confidence:        Optional[float] = None
     status:            Optional[str] = "needs_review"
 
@@ -230,6 +235,9 @@ def get_review_targets(target: Optional[str] = None, limit: int = 20):
 @app.post("/exams", summary="テストの登録")
 def register_exam(body: ExamInput):
     with get_db() as conn:
+        # term / term_name エイリアス解決（GPTは term を送ってくる場合がある）
+        term_name = body.term_name or body.term
+
         # exam_code が未指定の場合は自動生成
         if not body.exam_code:
             seq = conn.execute("SELECT COUNT(*) FROM exams").fetchone()[0] + 1
@@ -237,7 +245,7 @@ def register_exam(body: ExamInput):
                 body.school_name  or "unknown",
                 body.grade_level  or "unknown",
                 body.school_year  or "unknown",
-                body.term_name    or "unknown",
+                term_name         or "unknown",
                 f"{seq:03d}",
             ]
             exam_code = "_".join(parts)
@@ -255,7 +263,7 @@ def register_exam(body: ExamInput):
                 """,
                 (
                     exam_code, body.school_name, body.grade_level, body.subject,
-                    body.term_name, body.school_year, body.exam_type,
+                    term_name, body.school_year, body.exam_type,
                     body.source_file_name, body.source_file_type,
                     body.source_file_path, body.status,
                 ),
@@ -296,6 +304,11 @@ def update_exam(exam_code: str, body: ExamPatch):
 @app.post("/questions", summary="問題の登録")
 def register_question(body: QuestionInput):
     with get_db() as conn:
+        # question_no / major_question_no エイリアス解決
+        major_q_no  = body.major_question_no or body.question_no or "1"
+        # question_text / ocr_clean_text エイリアス解決
+        clean_text  = body.ocr_clean_text or body.question_text
+
         # exam_code + page_no から exam_id / page_id を取得
         row = conn.execute(
             """
@@ -308,16 +321,28 @@ def register_question(body: QuestionInput):
         ).fetchone()
 
         if not row:
-            raise HTTPException(
-                status_code=404,
-                detail=f"exam_code='{body.exam_code}' / page_no={body.page_no} が見つかりません",
+            # exam_pages が未作成の場合（GPTフロー）: exam を確認してページを自動作成
+            exam_row = conn.execute(
+                "SELECT exam_id FROM exams WHERE exam_code = ?",
+                (body.exam_code,),
+            ).fetchone()
+            if not exam_row:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"exam_code='{body.exam_code}' が見つかりません。先にPOST /exams でテストを登録してください",
+                )
+            exam_id = exam_row["exam_id"]
+            cur = conn.execute(
+                "INSERT INTO exam_pages (exam_id, page_no, page_image_path) VALUES (?, ?, ?)",
+                (exam_id, body.page_no, None),
             )
-
-        exam_id, page_id = row["exam_id"], row["page_id"]
+            page_id = cur.lastrowid
+        else:
+            exam_id, page_id = row["exam_id"], row["page_id"]
 
         # question_code を生成
-        minor     = body.minor_question_no or "x"
-        q_code    = f"{body.exam_code}_q{body.major_question_no}_{minor}"
+        minor  = body.minor_question_no or "x"
+        q_code = f"{body.exam_code}_q{major_q_no}_{minor}"
 
         # unit_name の辞書チェック（警告のみ）
         unit_warning = None
@@ -341,9 +366,9 @@ def register_question(body: QuestionInput):
                 """,
                 (
                     exam_id, page_id,
-                    body.major_question_no, body.minor_question_no,
+                    major_q_no, body.minor_question_no,
                     q_code, body.unit_name, body.sub_unit_name, body.question_type,
-                    body.figure_exists, body.ocr_raw_text, body.ocr_clean_text,
+                    body.figure_exists, body.ocr_raw_text, clean_text,
                     body.answer_text, body.confidence, body.status,
                 ),
             )
