@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数学問題バンク</title>
+  <style>
+    /* ===== リセット・ベース ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Sans", "Meiryo", sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 16px; }
+    .subtitle { color: #718096; font-size: 0.9rem; margin-bottom: 24px; }
+
+    /* ===== フォーム要素 ===== */
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #cbd5e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #f7fafc;
+      margin-bottom: 20px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    select:focus, input[type="number"]:focus { border-color: #4299e1; background: #fff; }
+
+    /* ===== ボタン ===== */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary  { background: #4299e1; color: #fff; }
+    .btn-primary:hover:not(:disabled)  { background: #3182ce; }
+    .btn-success  { background: #48bb78; color: #fff; }
+    .btn-success:hover { background: #38a169; }
+    .btn-danger   { background: #fc8181; color: #fff; }
+    .btn-danger:hover  { background: #f56565; }
+    .btn-outline  { background: #fff; color: #4a5568; border: 1.5px solid #cbd5e0; }
+    .btn-outline:hover { background: #edf2f7; }
+
+    .btn + .btn { margin-top: 10px; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn { flex: 1; }
+
+    /* ===== 進捗バー ===== */
+    .progress-wrap { margin-bottom: 20px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: #718096; margin-bottom: 6px; }
+    .progress-bar { height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #4299e1; border-radius: 99px; transition: width .4s ease; }
+
+    /* ===== 問題カード ===== */
+    .question-meta {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .badge {
+      font-size: 0.75rem; font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 99px;
+      background: #ebf8ff; color: #2b6cb0;
+    }
+    .badge.school { background: #faf5ff; color: #6b46c1; }
+
+    .question-box {
+      background: #f7fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 18px;
+      font-size: 1rem;
+      line-height: 1.8;
+      min-height: 100px;
+      white-space: pre-wrap;
+      margin-bottom: 20px;
+    }
+
+    /* ===== 答え表示 ===== */
+    .answer-box {
+      background: #fffaf0;
+      border: 1.5px solid #f6ad55;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .answer-box .answer-label {
+      font-size: 0.8rem; font-weight: 700; color: #c05621;
+      margin-bottom: 6px;
+    }
+    .answer-box .answer-text {
+      font-size: 1rem; line-height: 1.7; white-space: pre-wrap;
+    }
+    .no-answer {
+      color: #a0aec0; font-size: 0.9rem; font-style: italic;
+    }
+
+    /* ===== 判定結果 ===== */
+    .judgment {
+      text-align: center;
+      font-size: 2.5rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .judgment.correct { color: #38a169; }
+    .judgment.wrong   { color: #e53e3e; }
+
+    /* ===== スコア ===== */
+    .score-circle {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #4299e1, #9f7aea);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      color: #fff;
+    }
+    .score-circle .score-num { font-size: 2rem; font-weight: 900; line-height: 1; }
+    .score-circle .score-label { font-size: 0.75rem; }
+
+    .score-detail { text-align: center; color: #718096; margin-bottom: 24px; }
+
+    /* ===== ローディング ===== */
+    .loading { text-align: center; padding: 40px 0; color: #a0aec0; }
+    .loading::after {
+      content: "";
+      display: block;
+      width: 36px; height: 36px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #4299e1;
+      border-radius: 50%;
+      margin: 12px auto 0;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== エラー ===== */
+    .error-box {
+      background: #fff5f5; border: 1.5px solid #fc8181;
+      border-radius: 10px; padding: 14px;
+      color: #c53030; font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    /* ===== 非表示 ===== */
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- ============ 画面1: 単元選択 ============ -->
+  <div id="screen-select">
+    <h1>📚 数学問題バンク</h1>
+    <p class="subtitle">単元を選んで練習しましょう</p>
+
+    <div id="select-loading" class="loading">単元を読み込み中</div>
+    <div id="select-error"  class="error-box" hidden></div>
+
+    <div id="select-form" hidden>
+      <label for="unit-select">単元</label>
+      <select id="unit-select">
+        <option value="">-- 単元を選んでください --</option>
+      </select>
+
+      <label for="question-count">出題数</label>
+      <input type="number" id="question-count" value="5" min="1" max="20" />
+
+      <button class="btn btn-primary" id="start-btn" onclick="startQuiz()" disabled>
+        スタート →
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ 画面2: 問題 ============ -->
+  <div id="screen-quiz" hidden>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="progress-text">1 / 5</span>
+        <span id="unit-label"></span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="question-meta" id="question-meta"></div>
+    <div class="question-box" id="question-text">問題文</div>
+
+    <div id="answer-reveal" hidden>
+      <div class="answer-box" id="answer-box">
+        <div class="answer-label">📝 答え</div>
+        <div class="answer-text" id="answer-text"></div>
+      </div>
+      <p style="font-size:.9rem;color:#4a5568;margin-bottom:12px;text-align:center;">
+        答えを確認しました。どちらでしたか？
+      </p>
+      <div class="btn-row">
+        <button class="btn btn-success" onclick="judge(true)">○ 正解</button>
+        <button class="btn btn-danger"  onclick="judge(false)">× 不正解</button>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" id="show-answer-btn" onclick="showAnswer()">
+      答えを見る
+    </button>
+  </div>
+
+  <!-- ============ 画面3: 完了 ============ -->
+  <div id="screen-finish" hidden>
+    <h2 style="text-align:center;margin-bottom:20px;">🎉 おつかれさまでした！</h2>
+    <div class="score-circle">
+      <span class="score-num" id="score-num">—</span>
+      <span class="score-label">正解</span>
+    </div>
+    <p class="score-detail" id="score-detail"></p>
+
+    <div id="wrong-list-wrap" hidden>
+      <p style="font-size:.85rem;font-weight:700;color:#4a5568;margin-bottom:8px;">
+        ✗ 間違えた問題
+      </p>
+      <ul id="wrong-list" style="font-size:.85rem;color:#718096;padding-left:16px;line-height:2;margin-bottom:20px;"></ul>
+    </div>
+
+    <button class="btn btn-primary" onclick="restart()">もう一度同じ単元</button>
+    <button class="btn btn-outline" onclick="goSelect()" style="margin-top:10px">単元を選びなおす</button>
+  </div>
+
+</div>
+
+<script>
+  const API = "https://math-test-bank.onrender.com";
+
+  let questions  = [];
+  let current    = 0;
+  let score      = 0;
+  let wrongItems = [];
+  let selectedUnit = "";
+
+  // ========== 初期化: 単元一覧を取得 ==========
+  async function init() {
+    try {
+      const res  = await fetch(`${API}/units`);
+      const data = await res.json();
+
+      // 単元名の重複除去してドロップダウン生成
+      const seen  = new Set();
+      const units = [];
+      data.forEach(u => {
+        if (!seen.has(u.unit_name)) {
+          seen.add(u.unit_name);
+          units.push(u.unit_name);
+        }
+      });
+
+      const sel = document.getElementById("unit-select");
+      units.forEach(name => {
+        const opt  = document.createElement("option");
+        opt.value  = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+
+      sel.addEventListener("change", () => {
+        document.getElementById("start-btn").disabled = !sel.value;
+      });
+
+      document.getElementById("select-loading").hidden = true;
+      document.getElementById("select-form").hidden    = false;
+
+    } catch (e) {
+      document.getElementById("select-loading").hidden = true;
+      const errEl = document.getElementById("select-error");
+      errEl.hidden      = false;
+      errEl.textContent = "⚠️ 単元の読み込みに失敗しました。しばらく待ってから再読み込みしてください。";
+    }
+  }
+
+  // ========== スタート ==========
+  async function startQuiz() {
+    selectedUnit = document.getElementById("unit-select").value;
+    const limit  = parseInt(document.getElementById("question-count").value) || 5;
+
+    show("screen-select");
+    document.getElementById("select-loading").hidden = false;
+    document.getElementById("select-loading").textContent = "問題を読み込み中";
+    document.getElementById("select-form").hidden = true;
+
+    try {
+      const res  = await fetch(
+        `${API}/questions/search?unit_name=${encodeURIComponent(selectedUnit)}&limit=${limit}`
+      );
+      const data = await res.json();
+
+      if (!data.questions || data.questions.length === 0) {
+        document.getElementById("select-loading").hidden = true;
+        const errEl = document.getElementById("select-error");
+        errEl.hidden      = false;
+        errEl.textContent = `「${selectedUnit}」の問題がまだ登録されていません。`;
+        document.getElementById("select-form").hidden = false;
+        document.getElementById("start-btn").disabled = false;
+        return;
+      }
+
+      questions  = shuffle(data.questions).slice(0, limit);
+      current    = 0;
+      score      = 0;
+      wrongItems = [];
+
+      show("screen-quiz");
+      renderQuestion();
+
+    } catch (e) {
+      document.getElementById("select-loading").hidden = true;
+      const errEl = document.getElementById("select-error");
+      errEl.hidden      = false;
+      errEl.textContent = "⚠️ 問題の読み込みに失敗しました。";
+      document.getElementById("select-form").hidden = false;
+      document.getElementById("start-btn").disabled = false;
+    }
+  }
+
+  // ========== 問題を描画 ==========
+  function renderQuestion() {
+    const q   = questions[current];
+    const idx = current + 1;
+    const tot = questions.length;
+
+    // プログレス
+    document.getElementById("progress-text").textContent = `${idx} / ${tot}`;
+    document.getElementById("unit-label").textContent    = selectedUnit;
+    document.getElementById("progress-fill").style.width = `${(idx / tot) * 100}%`;
+
+    // メタバッジ
+    const meta = document.getElementById("question-meta");
+    meta.innerHTML = "";
+    if (q.school_name)  meta.innerHTML += `<span class="badge school">${q.school_name}</span>`;
+    if (q.grade_level)  meta.innerHTML += `<span class="badge">${q.grade_level}</span>`;
+    if (q.school_year)  meta.innerHTML += `<span class="badge">${q.school_year}年度</span>`;
+    if (q.term_name)    meta.innerHTML += `<span class="badge">${q.term_name}</span>`;
+    if (q.question_type) meta.innerHTML += `<span class="badge">${q.question_type}</span>`;
+
+    // 問題文
+    const qText = q.ocr_clean_text || q.question_text || "（問題文が登録されていません）";
+    document.getElementById("question-text").textContent = qText;
+
+    // 答え欄をリセット
+    document.getElementById("answer-reveal").hidden    = true;
+    document.getElementById("show-answer-btn").hidden  = false;
+  }
+
+  // ========== 答えを表示 ==========
+  function showAnswer() {
+    const q = questions[current];
+    const answerEl = document.getElementById("answer-text");
+
+    if (q.answer_text && q.answer_text.trim()) {
+      answerEl.textContent = q.answer_text;
+    } else {
+      answerEl.innerHTML = '<span class="no-answer">答えが登録されていません。教科書や解答用紙で確認してください。</span>';
+    }
+
+    document.getElementById("answer-reveal").hidden   = false;
+    document.getElementById("show-answer-btn").hidden = true;
+  }
+
+  // ========== 判定 ==========
+  function judge(isCorrect) {
+    if (isCorrect) {
+      score++;
+    } else {
+      const q = questions[current];
+      wrongItems.push(q.ocr_clean_text || q.question_text || `問題 ${current + 1}`);
+    }
+
+    current++;
+    if (current < questions.length) {
+      renderQuestion();
+    } else {
+      showFinish();
+    }
+  }
+
+  // ========== 完了画面 ==========
+  function showFinish() {
+    show("screen-finish");
+    const tot = questions.length;
+    document.getElementById("score-num").textContent    = `${score}/${tot}`;
+    document.getElementById("score-detail").textContent =
+      `${tot}問中 ${score}問正解（正答率 ${Math.round(score/tot*100)}%）`;
+
+    if (wrongItems.length > 0) {
+      const list = document.getElementById("wrong-list");
+      list.innerHTML = wrongItems
+        .map(t => `<li>${t.slice(0, 40)}${t.length > 40 ? "…" : ""}</li>`)
+        .join("");
+      document.getElementById("wrong-list-wrap").hidden = false;
+    } else {
+      document.getElementById("wrong-list-wrap").hidden = true;
+    }
+  }
+
+  // ========== ナビゲーション ==========
+  function restart() {
+    startQuiz();
+  }
+
+  function goSelect() {
+    document.getElementById("select-error").hidden = true;
+    document.getElementById("select-form").hidden  = false;
+    document.getElementById("select-loading").hidden = true;
+    show("screen-select");
+  }
+
+  // ========== ユーティリティ ==========
+  function show(id) {
+    ["screen-select","screen-quiz","screen-finish"].forEach(s => {
+      document.getElementById(s).hidden = (s !== id);
+    });
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // 起動
+  init();
+</script>
+</body>
+</html>
