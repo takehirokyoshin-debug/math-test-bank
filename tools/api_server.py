@@ -692,6 +692,27 @@ async def upload_db(file: UploadFile = File(...)):
 
 
 # ---------------------------------------------------------------
+# GET /admin/download_db  RenderのDBをローカルにダウンロード
+# ---------------------------------------------------------------
+
+@app.get("/admin/download_db", summary="サーバーのDBをダウンロード")
+def download_db():
+    """
+    Render 上の math_test_bank.db をダウンロードする。
+    登録作業後にローカルへバックアップするために使う。
+    tools/pull_db_from_render.py から呼び出す。
+    """
+    from fastapi.responses import FileResponse
+    if not DB_PATH.exists():
+        raise HTTPException(status_code=404, detail="DBが見つかりません")
+    return FileResponse(
+        path=str(DB_PATH),
+        media_type="application/octet-stream",
+        filename="math_test_bank.db",
+    )
+
+
+# ---------------------------------------------------------------
 # 起動
 # ---------------------------------------------------------------
 
