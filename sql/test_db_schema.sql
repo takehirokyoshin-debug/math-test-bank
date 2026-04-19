@@ -51,7 +51,9 @@ CREATE TABLE IF NOT EXISTS questions (
     sub_unit_name      TEXT,                                -- 小単元
     question_type      TEXT,                                -- 計算 / 証明 / 作図 / 記述 など
     figure_exists      INTEGER NOT NULL DEFAULT 0,          -- 図あり=1 / なし=0
-    question_image_path TEXT,                               -- 切り出し画像パス（将来用）
+    figure_description TEXT,                               -- GPT-4oによる図の説明・式
+    question_image_path TEXT,                              -- 切り出し画像パス（将来用）
+    question_image_base64 TEXT,                            -- 図の画像（base64、将来用）
     ocr_raw_text       TEXT,
     ocr_clean_text     TEXT,
     answer_text        TEXT,

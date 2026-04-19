@@ -138,23 +138,25 @@ class QuestionInput(BaseModel):
     sub_unit_name:     Optional[str] = None
     question_type:     Optional[str] = None
     figure_exists:     Optional[int] = 0
-    question_text:     Optional[str] = None  # GPT用エイリアス（ocr_clean_text と同じ）
-    ocr_raw_text:      Optional[str] = None
-    ocr_clean_text:    Optional[str] = None
-    image_base64:      Optional[str] = None  # 受け取るが現在は保存しない
-    answer_text:       Optional[str] = None
-    difficulty:        Optional[int] = None  # 受け取るが現在は保存しない
+    question_text:      Optional[str] = None  # GPT用エイリアス（ocr_clean_text と同じ）
+    ocr_raw_text:       Optional[str] = None
+    ocr_clean_text:     Optional[str] = None
+    figure_description: Optional[str] = None  # 図の説明文・式（GPT-4oが記述）
+    image_base64:       Optional[str] = None  # 受け取るが現在は保存しない
+    answer_text:        Optional[str] = None
+    difficulty:         Optional[int] = None  # 受け取るが現在は保存しない
     confidence:        Optional[float] = None
     status:            Optional[str] = "needs_review"
 
 class QuestionPatch(BaseModel):
-    unit_name:      Optional[str] = None
-    sub_unit_name:  Optional[str] = None
-    question_type:  Optional[str] = None
-    ocr_clean_text: Optional[str] = None
-    answer_text:    Optional[str] = None
-    confidence:     Optional[float] = None
-    status:         Optional[str] = None
+    unit_name:          Optional[str] = None
+    sub_unit_name:      Optional[str] = None
+    question_type:      Optional[str] = None
+    ocr_clean_text:     Optional[str] = None
+    figure_description: Optional[str] = None
+    answer_text:        Optional[str] = None
+    confidence:         Optional[float] = None
+    status:             Optional[str] = None
 
 
 # ---------------------------------------------------------------
@@ -387,15 +389,16 @@ def register_question(body: QuestionInput):
                 INSERT INTO questions
                     (exam_id, page_id, major_question_no, minor_question_no,
                      question_code, unit_name, sub_unit_name, question_type,
-                     figure_exists, ocr_raw_text, ocr_clean_text,
+                     figure_exists, figure_description, ocr_raw_text, ocr_clean_text,
                      answer_text, confidence, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     exam_id, page_id,
                     major_q_no, body.minor_question_no,
                     q_code, body.unit_name, body.sub_unit_name, body.question_type,
-                    body.figure_exists, body.ocr_raw_text, clean_text,
+                    body.figure_exists, body.figure_description,
+                    body.ocr_raw_text, clean_text,
                     body.answer_text, body.confidence, body.status,
                 ),
             )
