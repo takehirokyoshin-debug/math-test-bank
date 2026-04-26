@@ -72,6 +72,9 @@
     .btn-danger:hover  { background: #f56565; }
     .btn-outline { background: #fff; color: #4a5568; border: 1.5px solid #cbd5e0; }
     .btn-outline:hover { background: #edf2f7; }
+    .btn-flag { background: #fff; color: #c05621; border: 1.5px solid #f6ad55; flex: 0 0 auto !important; width: 48px !important; font-size: 1.2rem; padding: 10px 0; }
+    .btn-flag:hover { background: #fffaf0; }
+    .btn-flag.flagged { background: #fff5f5; border-color: #fc8181; color: #e53e3e; }
     .btn + .btn { margin-top: 10px; }
     .btn-row { display: flex; gap: 10px; }
     .btn-row .btn { flex: 1; }
@@ -236,6 +239,7 @@
       <div class="btn-row">
         <button class="btn btn-success" onclick="judge(true)">○ 正解</button>
         <button class="btn btn-danger"  onclick="judge(false)">× 不正解</button>
+        <button class="btn btn-flag"    onclick="flagQuestion()" id="flag-btn" title="答えがおかしい">🚩</button>
       </div>
     </div>
 
@@ -458,6 +462,26 @@ function showAnswer() {
 
   document.getElementById("answer-reveal").hidden   = false;
   document.getElementById("show-answer-btn").hidden = true;
+}
+
+// ========== 答えがおかしい（フラグ） ==========
+async function flagQuestion() {
+  const q   = questions[current];
+  const btn = document.getElementById("flag-btn");
+  if (btn.classList.contains("flagged")) return;
+
+  try {
+    await fetch(`${API}/questions/${q.question_code}`, {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ status: "flagged" }),
+    });
+    btn.classList.add("flagged");
+    btn.title = "報告済み";
+    btn.textContent = "🚩✓";
+  } catch (e) {
+    alert("報告に失敗しました。もう一度お試しください。");
+  }
 }
 
 // ========== 判定 ==========

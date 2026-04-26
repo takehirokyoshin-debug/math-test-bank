@@ -439,6 +439,49 @@ def update_question(question_code: str, body: QuestionPatch):
 
 
 # ---------------------------------------------------------------
+# DELETE /questions/{question_code}  問題の削除
+# ---------------------------------------------------------------
+
+@app.delete("/questions/{question_code}", summary="問題の削除")
+def delete_question(question_code: str):
+    with get_db() as conn:
+        cur = conn.execute(
+            "DELETE FROM questions WHERE question_code = ?",
+            (question_code,),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"question_code '{question_code}' が見つかりません")
+        return {"success": True, "message": f"'{question_code}' を削除しました"}
+
+
+# ---------------------------------------------------------------
+# DELETE /exams/{exam_code}  テストと紐づく問題を全て削除
+# ---------------------------------------------------------------
+
+@app.delete("/exams/{exam_code}", summary="テストと問題を削除")
+def delete_exam(exam_code: str):
+    with get_db() as conn:
+        # exam_id を取得
+        row = conn.execute(
+            "SELECT exam_id FROM exams WHERE exam_code = ?", (exam_code,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail=f"exam_code '{exam_code}' が見つかりません")
+        exam_id = row["exam_id"]
+
+        # 関連する問題・ページを削除してからテストを削除
+        q_count  = conn.execute("SELECT COUNT(*) FROM questions  WHERE exam_id = ?", (exam_id,)).fetchone()[0]
+        p_count  = conn.execute("SELECT COUNT(*) FROM exam_pages WHERE exam_id = ?", (exam_id,)).fetchone()[0]
+        conn.execute("DELETE FROM questions  WHERE exam_id = ?", (exam_id,))
+        conn.execute("DELETE FROM exam_pages WHERE exam_id = ?", (exam_id,))
+        conn.execute("DELETE FROM exams      WHERE exam_id = ?", (exam_id,))
+        return {
+            "success": True,
+            "message": f"'{exam_code}' と問題{q_count}件・ページ{p_count}件を削除しました",
+        }
+
+
+# ---------------------------------------------------------------
 # GET /questions/search  単元・条件で問題を検索
 # ---------------------------------------------------------------
 

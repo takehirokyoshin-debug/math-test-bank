@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>管理画面 - 数学問題バンク</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Hiragino Sans","Meiryo",sans-serif; background:#f0f4f8; color:#1a202c; min-height:100vh; }
+
+    /* ===== ログイン画面 ===== */
+    #screen-login {
+      display:flex; align-items:center; justify-content:center; min-height:100vh;
+    }
+    .login-card {
+      background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.1);
+      padding:40px 36px; width:340px; text-align:center;
+    }
+    .login-card h1 { font-size:1.3rem; margin-bottom:6px; }
+    .login-card p  { color:#718096; font-size:.85rem; margin-bottom:24px; }
+    .login-card input {
+      width:100%; padding:10px 14px; border:1.5px solid #cbd5e0;
+      border-radius:8px; font-size:1rem; margin-bottom:14px; outline:none;
+    }
+    .login-card input:focus { border-color:#4299e1; }
+    .login-error { color:#e53e3e; font-size:.85rem; margin-bottom:10px; }
+
+    /* ===== メインレイアウト ===== */
+    #screen-admin { display:none; }
+    .layout { display:flex; min-height:100vh; }
+
+    /* サイドバー */
+    .sidebar {
+      width:220px; background:#2d3748; color:#fff; flex-shrink:0;
+      display:flex; flex-direction:column;
+      position:sticky; top:0; height:100vh; overflow-y:auto;
+    }
+    .sidebar-header { padding:20px 16px 12px; border-bottom:1px solid #4a5568; }
+    .sidebar-header h2 { font-size:.95rem; color:#e2e8f0; }
+    .sidebar-header p  { font-size:.75rem; color:#a0aec0; margin-top:2px; }
+    .sidebar nav { padding:12px 0; flex:1; }
+    .nav-item {
+      display:flex; align-items:center; gap:10px;
+      padding:10px 16px; cursor:pointer; color:#cbd5e0;
+      font-size:.9rem; transition:background .15s;
+      border-left:3px solid transparent;
+    }
+    .nav-item:hover { background:#4a5568; }
+    .nav-item.active { background:#4a5568; color:#fff; border-left-color:#4299e1; }
+    .nav-badge {
+      margin-left:auto; background:#e53e3e; color:#fff;
+      font-size:.7rem; font-weight:700; padding:2px 6px; border-radius:99px;
+    }
+    .nav-badge.yellow { background:#d69e2e; }
+    .sidebar-footer { padding:12px 16px; border-top:1px solid #4a5568; }
+    .sidebar-footer button {
+      width:100%; padding:8px; background:#4a5568; color:#cbd5e0;
+      border:none; border-radius:6px; cursor:pointer; font-size:.85rem;
+    }
+    .sidebar-footer button:hover { background:#718096; }
+
+    /* メインコンテンツ */
+    .main { flex:1; padding:28px; overflow-y:auto; }
+    .page-title { font-size:1.4rem; font-weight:700; margin-bottom:20px; }
+
+    /* ===== ダッシュボード ===== */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+    .stat-card {
+      background:#fff; border-radius:12px; padding:20px;
+      box-shadow:0 2px 8px rgba(0,0,0,.06); text-align:center;
+    }
+    .stat-card .num  { font-size:2rem; font-weight:900; line-height:1; }
+    .stat-card .lbl  { font-size:.8rem; color:#718096; margin-top:4px; }
+    .stat-card.red   .num { color:#e53e3e; }
+    .stat-card.yellow .num { color:#d69e2e; }
+    .stat-card.green .num { color:#38a169; }
+    .stat-card.blue  .num { color:#4299e1; }
+
+    /* ===== 問題リスト ===== */
+    .toolbar {
+      display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;
+    }
+    .toolbar input, .toolbar select {
+      padding:8px 12px; border:1.5px solid #cbd5e0; border-radius:8px;
+      font-size:.9rem; outline:none; background:#fff;
+    }
+    .toolbar input:focus, .toolbar select:focus { border-color:#4299e1; }
+    .toolbar .btn-sm {
+      padding:8px 16px; border:none; border-radius:8px; font-size:.85rem;
+      font-weight:600; cursor:pointer;
+    }
+    .btn-sm-primary { background:#4299e1; color:#fff; }
+    .btn-sm-primary:hover { background:#3182ce; }
+
+    .q-count { color:#718096; font-size:.85rem; margin-bottom:12px; }
+
+    /* 問題カード */
+    .q-card {
+      background:#fff; border-radius:12px; padding:20px;
+      box-shadow:0 2px 8px rgba(0,0,0,.06); margin-bottom:16px;
+      border-left:4px solid #cbd5e0;
+    }
+    .q-card.flagged    { border-left-color:#e53e3e; }
+    .q-card.needs_review { border-left-color:#d69e2e; }
+    .q-card.reviewed   { border-left-color:#38a169; }
+
+    .q-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+    .q-code   { font-size:.75rem; color:#a0aec0; font-family:monospace; }
+    .q-badges { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+    .badge {
+      font-size:.72rem; font-weight:600; padding:2px 8px;
+      border-radius:99px; background:#ebf8ff; color:#2b6cb0;
+    }
+    .badge.red    { background:#fff5f5; color:#c53030; }
+    .badge.yellow { background:#fffff0; color:#975a16; }
+    .badge.green  { background:#f0fff4; color:#276749; }
+
+    .q-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+    .q-field label {
+      display:block; font-size:.75rem; font-weight:700;
+      color:#4a5568; margin-bottom:4px;
+    }
+    .q-field textarea, .q-field select, .q-field input {
+      width:100%; padding:8px 10px; border:1.5px solid #e2e8f0;
+      border-radius:8px; font-size:.9rem; outline:none;
+      font-family:inherit; background:#f7fafc; resize:vertical;
+    }
+    .q-field textarea { min-height:72px; }
+    .q-field textarea:focus, .q-field select:focus, .q-field input:focus {
+      border-color:#4299e1; background:#fff;
+    }
+    .q-field.full { grid-column:1/-1; }
+
+    .q-figure { grid-column:1/-1; }
+    .q-figure img {
+      max-width:200px; max-height:200px; border:1px solid #e2e8f0;
+      border-radius:8px; display:block;
+    }
+
+    .q-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
+    .btn-save   { padding:8px 20px; background:#4299e1; color:#fff; border:none; border-radius:8px; font-size:.9rem; font-weight:700; cursor:pointer; }
+    .btn-save:hover { background:#3182ce; }
+    .btn-saved  { background:#38a169; }
+    .btn-delete { padding:8px 16px; background:#fff; color:#e53e3e; border:1.5px solid #fc8181; border-radius:8px; font-size:.9rem; font-weight:700; cursor:pointer; }
+    .btn-delete:hover { background:#fff5f5; }
+
+    /* ===== テスト一覧 ===== */
+    .exam-table { width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+    .exam-table th { background:#f7fafc; padding:12px 16px; text-align:left; font-size:.85rem; color:#4a5568; border-bottom:1px solid #e2e8f0; }
+    .exam-table td { padding:12px 16px; font-size:.9rem; border-bottom:1px solid #f0f4f8; }
+    .exam-table tr:last-child td { border-bottom:none; }
+    .exam-table tr:hover td { background:#f7fafc; }
+    .btn-del-exam { padding:4px 12px; background:#fff; color:#e53e3e; border:1px solid #fc8181; border-radius:6px; font-size:.8rem; cursor:pointer; }
+    .btn-del-exam:hover { background:#fff5f5; }
+
+    /* ===== 共通 ===== */
+    .loading { text-align:center; padding:40px; color:#a0aec0; }
+    .empty   { text-align:center; padding:40px; color:#a0aec0; font-size:.95rem; }
+    .btn { display:block; width:100%; padding:11px; border:none; border-radius:8px; font-size:.95rem; font-weight:700; cursor:pointer; }
+    .btn-primary { background:#4299e1; color:#fff; }
+    .btn-primary:hover { background:#3182ce; }
+
+    [hidden] { display:none !important; }
+    .section { display:none; }
+    .section.active { display:block; }
+  </style>
+</head>
+<body>
+
+<!-- ===== ログイン ===== -->
+<div id="screen-login">
+  <div class="login-card">
+    <h1>🔐 管理画面</h1>
+    <p>数学問題バンク</p>
+    <div class="login-error" id="login-error" hidden>パスワードが違います</div>
+    <input type="password" id="pw-input" placeholder="パスワード"
+           onkeydown="if(event.key==='Enter')login()" />
+    <button class="btn btn-primary" onclick="login()">ログイン</button>
+  </div>
+</div>
+
+<!-- ===== メイン ===== -->
+<div id="screen-admin">
+  <div class="layout">
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h2>📚 問題バンク</h2>
+        <p>管理画面</p>
+      </div>
+      <nav>
+        <div class="nav-item active" onclick="navTo('dashboard')">
+          📊 ダッシュボード
+        </div>
+        <div class="nav-item" onclick="navTo('flagged')">
+          🚩 要修正
+          <span class="nav-badge" id="badge-flagged">0</span>
+        </div>
+        <div class="nav-item" onclick="navTo('review')">
+          ⚠️ 要確認
+          <span class="nav-badge yellow" id="badge-review">0</span>
+        </div>
+        <div class="nav-item" onclick="navTo('search')">
+          🔍 問題検索・編集
+        </div>
+        <div class="nav-item" onclick="navTo('exams')">
+          📋 テスト一覧
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <button onclick="logout()">ログアウト</button>
+      </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <main class="main">
+
+      <!-- ダッシュボード -->
+      <div id="section-dashboard" class="section active">
+        <div class="page-title">📊 ダッシュボード</div>
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="num" id="stat-total">—</div>
+            <div class="lbl">総問題数</div>
+          </div>
+          <div class="stat-card red">
+            <div class="num" id="stat-flagged">—</div>
+            <div class="lbl">🚩 要修正</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="num" id="stat-review">—</div>
+            <div class="lbl">⚠️ 要確認</div>
+          </div>
+          <div class="stat-card green">
+            <div class="num" id="stat-reviewed">—</div>
+            <div class="lbl">✅ 確認済み</div>
+          </div>
+        </div>
+        <div class="stat-card blue" style="max-width:200px;margin-bottom:16px">
+          <div class="num" id="stat-exams">—</div>
+          <div class="lbl">登録テスト数</div>
+        </div>
+        <button class="btn btn-primary" style="max-width:180px" onclick="loadDashboard()">🔄 更新</button>
+      </div>
+
+      <!-- 要修正 -->
+      <div id="section-flagged" class="section">
+        <div class="page-title">🚩 要修正（答えの誤り報告）</div>
+        <div id="flagged-list"><div class="loading">読み込み中…</div></div>
+      </div>
+
+      <!-- 要確認 -->
+      <div id="section-review" class="section">
+        <div class="page-title">⚠️ 要確認（OCR・分類の確認）</div>
+        <div id="review-list"><div class="loading">読み込み中…</div></div>
+      </div>
+
+      <!-- 問題検索・編集 -->
+      <div id="section-search" class="section">
+        <div class="page-title">🔍 問題検索・編集</div>
+        <div class="toolbar">
+          <input type="text" id="search-unit"   placeholder="単元名" style="width:160px" />
+          <input type="text" id="search-school" placeholder="学校名" style="width:140px" />
+          <select id="search-type" style="width:130px">
+            <option value="">すべての種別</option>
+            <option>計算</option><option>証明</option><option>作図</option>
+            <option>文章題</option><option>グラフ</option><option>選択</option><option>記述</option>
+          </select>
+          <select id="search-status" style="width:130px">
+            <option value="">すべてのステータス</option>
+            <option value="flagged">🚩 要修正</option>
+            <option value="needs_review">⚠️ 要確認</option>
+            <option value="reviewed">✅ 確認済み</option>
+            <option value="imported">imported</option>
+          </select>
+          <input type="number" id="search-limit" value="20" min="1" max="100" style="width:80px" />
+          <button class="btn-sm btn-sm-primary" onclick="searchQuestions()">検索</button>
+        </div>
+        <div id="search-list"></div>
+      </div>
+
+      <!-- テスト一覧 -->
+      <div id="section-exams" class="section">
+        <div class="page-title">📋 テスト一覧</div>
+        <div id="exams-list"><div class="loading">読み込み中…</div></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+const API      = "https://math-test-bank.onrender.com";
+// ★ パスワードをここで設定してください ★
+const PASSWORD = "math2025";
+
+let unitList = [];
+
+// ===== ログイン =====
+function login() {
+  const pw = document.getElementById("pw-input").value;
+  if (pw === PASSWORD) {
+    sessionStorage.setItem("admin_auth", "1");
+    document.getElementById("screen-login").style.display = "none";
+    document.getElementById("screen-admin").style.display = "block";
+    loadUnits();
+    loadDashboard();
+  } else {
+    document.getElementById("login-error").hidden = false;
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem("admin_auth");
+  location.reload();
+}
+
+// セッション維持
+window.addEventListener("DOMContentLoaded", () => {
+  if (sessionStorage.getItem("admin_auth") === "1") {
+    document.getElementById("screen-login").style.display = "none";
+    document.getElementById("screen-admin").style.display = "block";
+    loadUnits();
+    loadDashboard();
+  }
+});
+
+// ===== ナビ =====
+function navTo(section) {
+  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  document.querySelectorAll(".section").forEach(el => el.classList.remove("active"));
+  event.currentTarget.classList.add("active");
+  document.getElementById(`section-${section}`).classList.add("active");
+
+  if (section === "flagged") loadStatusList("flagged", "flagged-list");
+  if (section === "review")  loadStatusList("needs_review", "review-list");
+  if (section === "exams")   loadExams();
+}
+
+// ===== 単元リスト =====
+async function loadUnits() {
+  try {
+    const res  = await fetch(`${API}/units`);
+    const data = await res.json();
+    const seen = new Set();
+    data.forEach(u => { if (!seen.has(u.unit_name)) { seen.add(u.unit_name); unitList.push(u.unit_name); }});
+  } catch(e) {}
+}
+
+// ===== ダッシュボード =====
+async function loadDashboard() {
+  try {
+    const res  = await fetch(`${API}/status`);
+    const d    = await res.json();
+    document.getElementById("stat-total").textContent    = d.questions_total ?? "—";
+    document.getElementById("stat-review").textContent   = d.questions_needs_review ?? "—";
+    document.getElementById("stat-exams").textContent    = d.exams_total ?? "—";
+
+    // flagged と reviewed はsearchで取得
+    const [rf, rr] = await Promise.all([
+      fetch(`${API}/questions/search?status=flagged&limit=1`).then(r=>r.json()),
+      fetch(`${API}/questions/search?status=reviewed&limit=1`).then(r=>r.json()),
+    ]);
+    const flagCount     = rf.total ?? 0;
+    const reviewedCount = rr.total ?? 0;
+    document.getElementById("stat-flagged").textContent  = flagCount;
+    document.getElementById("stat-reviewed").textContent = reviewedCount;
+    document.getElementById("badge-flagged").textContent = flagCount;
+    document.getElementById("badge-review").textContent  = d.questions_needs_review ?? 0;
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ===== ステータス別リスト =====
+async function loadStatusList(status, containerId) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '<div class="loading">読み込み中…</div>';
+  try {
+    const res  = await fetch(`${API}/questions/search?status=${status}&limit=50`);
+    const data = await res.json();
+    if (!data.questions || data.questions.length === 0) {
+      el.innerHTML = `<div class="empty">該当する問題はありません ✅</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="q-count">${data.total}件</div>`;
+    data.questions.forEach(q => el.appendChild(buildCard(q)));
+  } catch(e) {
+    el.innerHTML = `<div class="empty">読み込みに失敗しました</div>`;
+  }
+}
+
+// ===== 問題検索 =====
+async function searchQuestions() {
+  const el     = document.getElementById("search-list");
+  const unit   = document.getElementById("search-unit").value;
+  const school = document.getElementById("search-school").value;
+  const type   = document.getElementById("search-type").value;
+  const status = document.getElementById("search-status").value;
+  const limit  = document.getElementById("search-limit").value || 20;
+
+  const params = new URLSearchParams();
+  if (unit)   params.set("unit_name",   unit);
+  if (school) params.set("school_name", school);
+  if (type)   params.set("question_type", type);
+  if (status) params.set("status",      status);
+  params.set("limit", limit);
+
+  el.innerHTML = '<div class="loading">検索中…</div>';
+  try {
+    const res  = await fetch(`${API}/questions/search?${params}`);
+    const data = await res.json();
+    if (!data.questions || data.questions.length === 0) {
+      el.innerHTML = `<div class="empty">該当する問題が見つかりませんでした</div>`;
+      return;
+    }
+    el.innerHTML = `<div class="q-count">${data.total}件中 ${data.questions.length}件を表示</div>`;
+    data.questions.forEach(q => el.appendChild(buildCard(q)));
+  } catch(e) {
+    el.innerHTML = `<div class="empty">検索に失敗しました</div>`;
+  }
+}
+
+// ===== 問題カードを生成 =====
+function buildCard(q) {
+  const card = document.createElement("div");
+  card.className = `q-card ${q.status || ""}`;
+  card.id = `card-${q.question_code}`;
+
+  const statusBadge = {
+    flagged:      '<span class="badge red">🚩 要修正</span>',
+    needs_review: '<span class="badge yellow">⚠️ 要確認</span>',
+    reviewed:     '<span class="badge green">✅ 確認済み</span>',
+  }[q.status] || `<span class="badge">${q.status || ""}</span>`;
+
+  const figureHtml = q.question_image_base64
+    ? `<div class="q-field q-figure">
+         <label>図（登録済み）</label>
+         <img src="data:image/png;base64,${q.question_image_base64}" alt="図" />
+       </div>`
+    : "";
+
+  card.innerHTML = `
+    <div class="q-header">
+      <div>
+        <div class="q-code">${q.question_code}</div>
+        <div class="q-badges">
+          ${statusBadge}
+          ${q.school_name ? `<span class="badge">${q.school_name}</span>` : ""}
+          ${q.grade_level ? `<span class="badge">${q.grade_level}</span>` : ""}
+          ${q.school_year ? `<span class="badge">${q.school_year}年度</span>` : ""}
+          ${q.term_name   ? `<span class="badge">${q.term_name}</span>` : ""}
+          ${q.question_type ? `<span class="badge">${q.question_type}</span>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="q-grid">
+      <div class="q-field full">
+        <label>問題文</label>
+        <textarea id="qt-${q.question_code}">${q.ocr_clean_text || ""}</textarea>
+      </div>
+      <div class="q-field full">
+        <label>答え</label>
+        <textarea id="qa-${q.question_code}" style="min-height:52px">${q.answer_text || ""}</textarea>
+      </div>
+      <div class="q-field">
+        <label>単元名</label>
+        <select id="qu-${q.question_code}">
+          ${unitList.map(u => `<option${u===q.unit_name?" selected":""}>${u}</option>`).join("")}
+        </select>
+      </div>
+      <div class="q-field">
+        <label>ステータス</label>
+        <select id="qs-${q.question_code}">
+          <option value="flagged"     ${q.status==="flagged"     ?"selected":""}>🚩 要修正</option>
+          <option value="needs_review"${q.status==="needs_review"?"selected":""}>⚠️ 要確認</option>
+          <option value="reviewed"    ${q.status==="reviewed"    ?"selected":""}>✅ 確認済み</option>
+          <option value="imported"    ${q.status==="imported"    ?"selected":""}>imported</option>
+        </select>
+      </div>
+      ${q.figure_description ? `
+      <div class="q-field full">
+        <label>図の説明</label>
+        <input type="text" id="qfd-${q.question_code}" value="${(q.figure_description||"").replace(/"/g,"&quot;")}" />
+      </div>` : ""}
+      ${figureHtml}
+    </div>
+    <div class="q-actions">
+      <button class="btn-delete" onclick="deleteQuestion('${q.question_code}')">🗑️ 削除</button>
+      <button class="btn-save"   id="save-${q.question_code}"
+              onclick="saveQuestion('${q.question_code}')">💾 保存</button>
+    </div>
+  `;
+  return card;
+}
+
+// ===== 問題を保存 =====
+async function saveQuestion(code) {
+  const btn = document.getElementById(`save-${code}`);
+  btn.textContent = "保存中…"; btn.disabled = true;
+
+  const body = {
+    ocr_clean_text:  document.getElementById(`qt-${code}`)?.value,
+    answer_text:     document.getElementById(`qa-${code}`)?.value,
+    unit_name:       document.getElementById(`qu-${code}`)?.value,
+    status:          document.getElementById(`qs-${code}`)?.value,
+  };
+  const fdEl = document.getElementById(`qfd-${code}`);
+  if (fdEl) body.figure_description = fdEl.value;
+
+  // 空文字は除外
+  Object.keys(body).forEach(k => { if (body[k] === "") delete body[k]; });
+
+  try {
+    const res = await fetch(`${API}/questions/${code}`, {
+      method:  "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error();
+    btn.textContent = "✅ 保存済み";
+    btn.classList.add("btn-saved");
+    setTimeout(() => {
+      btn.textContent = "💾 保存";
+      btn.classList.remove("btn-saved");
+      btn.disabled = false;
+    }, 2000);
+    loadDashboard();
+  } catch(e) {
+    btn.textContent = "❌ 失敗";
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = "💾 保存"; }, 2000);
+  }
+}
+
+// ===== 問題を削除 =====
+async function deleteQuestion(code) {
+  if (!confirm(`「${code}」を削除しますか？\nこの操作は取り消せません。`)) return;
+  try {
+    const res = await fetch(`${API}/questions/${code}`, { method: "DELETE" });
+    if (!res.ok) throw new Error();
+    const card = document.getElementById(`card-${code}`);
+    if (card) { card.style.opacity = "0"; setTimeout(() => card.remove(), 300); }
+    loadDashboard();
+  } catch(e) {
+    alert("削除に失敗しました");
+  }
+}
+
+// ===== テスト一覧 =====
+async function loadExams() {
+  const el = document.getElementById("exams-list");
+  el.innerHTML = '<div class="loading">読み込み中…</div>';
+  try {
+    const res  = await fetch(`${API}/exams/list?limit=100`);
+    const data = await res.json();
+    if (!data.exams || data.exams.length === 0) {
+      el.innerHTML = `<div class="empty">テストが登録されていません</div>`;
+      return;
+    }
+    let html = `
+      <table class="exam-table">
+        <thead><tr>
+          <th>exam_code</th><th>学校名</th><th>学年</th>
+          <th>年度</th><th>時期</th><th>種別</th>
+          <th>ページ数</th><th>ステータス</th><th>登録日</th><th>操作</th>
+        </tr></thead><tbody>
+    `;
+    data.exams.forEach(e => {
+      html += `<tr>
+        <td style="font-family:monospace;font-size:.8rem">${e.exam_code}</td>
+        <td>${e.school_name||"—"}</td>
+        <td>${e.grade_level||"—"}</td>
+        <td>${e.school_year||"—"}</td>
+        <td>${e.term_name||"—"}</td>
+        <td>${e.exam_type||"—"}</td>
+        <td>${e.page_count||"—"}</td>
+        <td>${e.status||"—"}</td>
+        <td style="font-size:.8rem">${(e.imported_at||"").slice(0,10)}</td>
+        <td><button class="btn-del-exam" onclick="deleteExam('${e.exam_code}')">削除</button></td>
+      </tr>`;
+    });
+    html += "</tbody></table>";
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty">読み込みに失敗しました</div>`;
+  }
+}
+
+// ===== テストを削除 =====
+async function deleteExam(code) {
+  if (!confirm(`「${code}」とその全問題を削除しますか？\nこの操作は取り消せません。`)) return;
+  try {
+    const res = await fetch(`${API}/exams/${code}`, { method: "DELETE" });
+    const d   = await res.json();
+    alert(d.message);
+    loadExams();
+    loadDashboard();
+  } catch(e) {
+    alert("削除に失敗しました");
+  }
+}
+</script>
+</body>
+</html>
