@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>数学問題バンク</title>
+  <!-- KaTeX：分数・指数などの数式表示 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="katexReady = true"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -267,6 +272,50 @@ let current      = 0;
 let score        = 0;
 let wrongItems   = [];
 let selectedUnit = "";
+let katexReady   = false;  // KaTeX のロード完了フラグ
+
+// ========== 数式レンダリング ==========
+/**
+ * 指定要素内の数式を KaTeX でレンダリングする。
+ * $...$ または $$...$$ で囲まれた部分を数式表示に変換。
+ * テキスト内の ^ や \frac が含まれていれば自動で $...$ を補完する。
+ */
+function renderMath(el) {
+  if (!el || !window.renderMathInElement) return;
+
+  // テキスト内に数式記法があれば $ で囲まれていなくても処理できるよう補完
+  // 例: "x^2 + 3x - 1" → "$x^2 + 3x - 1$"
+  const text = el.textContent || "";
+  const hasMath = /[\^_]|\\frac|\\sqrt|\\times|\\div|\\pm|\\leq|\\geq|\\neq|\\cdot/.test(text);
+  if (hasMath && !/\$/.test(text)) {
+    // 数式記法はあるが $ がない場合、全体を inline math として扱う
+    el.textContent = `$${text}$`;
+  }
+
+  renderMathInElement(el, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true  },
+      { left: "$",  right: "$",  display: false },
+    ],
+    throwOnError: false,
+    errorColor:   "#c53030",
+  });
+}
+
+/** テキストをセットして数式レンダリングも行う */
+function setMathText(el, text) {
+  if (!el) return;
+  el.textContent = text || "";
+  // KaTeX がロード済みかポーリングして実行（defer のため）
+  const tryRender = () => {
+    if (window.renderMathInElement) {
+      renderMath(el);
+    } else {
+      setTimeout(tryRender, 100);
+    }
+  };
+  tryRender();
+}
 
 // ========== 初期化 ==========
 async function init() {
@@ -356,9 +405,9 @@ function renderQuestion() {
   if (q.term_name)     meta.innerHTML += `<span class="badge">${q.term_name}</span>`;
   if (q.question_type) meta.innerHTML += `<span class="badge">${q.question_type}</span>`;
 
-  // 問題文
+  // 問題文（数式レンダリング付き）
   const qText = q.ocr_clean_text || "（問題文が登録されていません）";
-  document.getElementById("question-text").textContent = qText;
+  setMathText(document.getElementById("question-text"), qText);
 
   // 図エリア
   const figArea  = document.getElementById("figure-area");
@@ -370,9 +419,9 @@ function renderQuestion() {
   if (q.figure_exists) {
     figArea.hidden = false;
 
-    // 説明文
+    // 説明文（数式レンダリング付き）
     const desc = q.figure_description || "";
-    document.getElementById("figure-description").textContent = desc;
+    setMathText(document.getElementById("figure-description"), desc);
 
     // ① base64画像があれば表示（幾何図形など）
     if (q.question_image_base64) {
@@ -402,7 +451,7 @@ function showAnswer() {
   const el = document.getElementById("answer-text");
 
   if (q.answer_text && q.answer_text.trim()) {
-    el.textContent = q.answer_text;
+    setMathText(el, q.answer_text);
   } else {
     el.innerHTML = '<span class="no-answer">答えが登録されていません。教科書・解答用紙で確認してください。</span>';
   }
