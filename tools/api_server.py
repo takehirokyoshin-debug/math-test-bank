@@ -438,6 +438,37 @@ def update_question(question_code: str, body: QuestionPatch):
         return {"success": True, "updated_rows": cur.rowcount, "message": "更新しました"}
 
 
+
+# ---------------------------------------------------------------
+# GET /questions/recent  直近の登録内容確認（デバッグ用）
+# ---------------------------------------------------------------
+
+@app.get("/questions/recent", summary="直近の登録内容確認")
+def get_recent_questions(limit: int = 5):
+    """登録後の確認用。直近limit件の問題を返す。"""
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                q.question_code, q.major_question_no, q.minor_question_no,
+                e.exam_code, e.school_name, e.grade_level,
+                ep.page_no,
+                q.unit_name, q.sub_unit_name, q.question_type,
+                q.ocr_clean_text, q.answer_text,
+                q.figure_exists, q.figure_description,
+                CASE WHEN q.question_image_base64 IS NOT NULL THEN 1 ELSE 0 END AS has_image,
+                q.difficulty, q.confidence, q.status
+            FROM questions q
+            JOIN exam_pages ep ON q.page_id = ep.page_id
+            JOIN exams      e  ON q.exam_id = e.exam_id
+            ORDER BY q.question_id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return {"count": len(rows), "questions": [dict(r) for r in rows]}
+
+
 # ---------------------------------------------------------------
 # DELETE /questions/{question_code}  問題の削除
 # ---------------------------------------------------------------
