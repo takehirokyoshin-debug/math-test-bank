@@ -457,7 +457,7 @@ def get_recent_questions(limit: int = 5):
                 q.ocr_clean_text, q.answer_text,
                 q.figure_exists, q.figure_description,
                 CASE WHEN q.question_image_base64 IS NOT NULL THEN 1 ELSE 0 END AS has_image,
-                q.difficulty, q.confidence, q.status
+                q.confidence, q.status
             FROM questions q
             JOIN exam_pages ep ON q.page_id = ep.page_id
             JOIN exams      e  ON q.exam_id = e.exam_id
