@@ -156,6 +156,7 @@ class QuestionPatch(BaseModel):
     ocr_clean_text:        Optional[str] = None
     figure_description:    Optional[str] = None
     question_image_base64: Optional[str] = None  # 図の画像（base64）
+    image_base64:          Optional[str] = None  # question_image_base64 のエイリアス
     answer_text:           Optional[str] = None
     confidence:            Optional[float] = None
     status:                Optional[str] = None
@@ -421,7 +422,13 @@ def register_question(body: QuestionInput):
 
 @app.patch("/questions/{question_code}", summary="問題情報の更新")
 def update_question(question_code: str, body: QuestionPatch):
-    fields = {k: v for k, v in body.model_dump().items() if v is not None}
+    data = body.model_dump()
+    # image_base64 → question_image_base64 エイリアス解決
+    if data.get("image_base64") and not data.get("question_image_base64"):
+        data["question_image_base64"] = data["image_base64"]
+    data.pop("image_base64", None)
+
+    fields = {k: v for k, v in data.items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="更新する値が指定されていません")
 
