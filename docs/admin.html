@@ -136,9 +136,16 @@
 
     .q-figure { grid-column:1/-1; }
     .q-figure img {
-      max-width:200px; max-height:200px; border:1px solid #e2e8f0;
-      border-radius:8px; display:block;
+      max-width:280px; max-height:280px; border:1px solid #e2e8f0;
+      border-radius:8px; display:block; margin-top:6px;
     }
+    .btn-load-fig {
+      padding:6px 14px; background:#ebf8ff; color:#2b6cb0;
+      border:1.5px solid #bee3f8; border-radius:8px;
+      font-size:.85rem; font-weight:600; cursor:pointer; margin-top:4px;
+    }
+    .btn-load-fig:hover { background:#bee3f8; }
+    .fig-none { color:#a0aec0; font-size:.8rem; margin-top:4px; }
 
     .q-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
     .btn-save   { padding:8px 20px; background:#4299e1; color:#fff; border:none; border-radius:8px; font-size:.9rem; font-weight:700; cursor:pointer; }
@@ -437,12 +444,23 @@ function buildCard(q) {
     reviewed:     '<span class="badge green">✅ 確認済み</span>',
   }[q.status] || `<span class="badge">${q.status || ""}</span>`;
 
-  const figureHtml = q.question_image_base64
-    ? `<div class="q-field q-figure">
-         <label>図（登録済み）</label>
-         <img src="data:image/png;base64,${q.question_image_base64}" alt="図" />
-       </div>`
-    : "";
+  // 図表示：検索APIはhas_imageのみ返すため、画像は遅延読み込みする
+  let figureHtml = "";
+  if (q.question_image_base64) {
+    // 詳細取得済みの場合は即表示
+    figureHtml = `<div class="q-field q-figure">
+      <label>図</label>
+      <img src="data:image/png;base64,${q.question_image_base64}" alt="図" />
+    </div>`;
+  } else if (q.has_image === 1 || q.figure_exists === 1) {
+    // has_image=1 だが未取得 → 読み込みボタンを表示
+    figureHtml = `<div class="q-field q-figure">
+      <label>図</label>
+      <div id="fig-area-${q.question_code}">
+        <button class="btn-load-fig" onclick="loadFigure('${q.question_code}')">🖼️ 図を表示</button>
+      </div>
+    </div>`;
+  }
 
   card.innerHTML = `
     <div class="q-header">
@@ -476,9 +494,10 @@ function buildCard(q) {
       <div class="q-field">
         <label>ステータス</label>
         <select id="qs-${q.question_code}">
+          <option value="ok"          ${q.status==="ok"          ?"selected":""}>✅ ok</option>
+          <option value="reviewed"    ${q.status==="reviewed"    ?"selected":""}>✅ 確認済み</option>
           <option value="flagged"     ${q.status==="flagged"     ?"selected":""}>🚩 要修正</option>
           <option value="needs_review"${q.status==="needs_review"?"selected":""}>⚠️ 要確認</option>
-          <option value="reviewed"    ${q.status==="reviewed"    ?"selected":""}>✅ 確認済み</option>
           <option value="imported"    ${q.status==="imported"    ?"selected":""}>imported</option>
         </select>
       </div>
@@ -496,6 +515,25 @@ function buildCard(q) {
     </div>
   `;
   return card;
+}
+
+// ===== 図を遅延読み込み =====
+async function loadFigure(code) {
+  const area = document.getElementById(`fig-area-${code}`);
+  if (!area) return;
+  area.innerHTML = '<span style="color:#718096;font-size:.8rem">読み込み中…</span>';
+  try {
+    const res  = await fetch(`${API}/questions/${code}`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.question_image_base64) {
+      area.innerHTML = `<img src="data:image/png;base64,${data.question_image_base64}" alt="図" />`;
+    } else {
+      area.innerHTML = '<span class="fig-none">画像データがありません</span>';
+    }
+  } catch {
+    area.innerHTML = '<span style="color:#e53e3e;font-size:.8rem">読み込み失敗</span>';
+  }
 }
 
 // ===== 問題を保存 =====
