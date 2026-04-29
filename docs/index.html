@@ -420,17 +420,28 @@ function renderQuestion() {
   canvas.hidden  = true;
   figImg.style.display = "none";
 
-  if (q.figure_exists) {
+  if (q.figure_exists || q.has_image) {
     figArea.hidden = false;
 
     // 説明文（数式レンダリング付き）
     const desc = q.figure_description || "";
     setMathText(document.getElementById("figure-description"), desc);
 
-    // ① base64画像があれば表示（幾何図形など）
+    // ① base64画像があれば即表示、なければ詳細APIから取得
     if (q.question_image_base64) {
       figImg.src = `data:image/png;base64,${q.question_image_base64}`;
       figImg.style.display = "block";
+    } else if (q.has_image) {
+      fetch(`${API}/questions/${q.question_code}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.question_image_base64) {
+            figImg.src = `data:image/png;base64,${data.question_image_base64}`;
+            figImg.style.display = "block";
+            q.question_image_base64 = data.question_image_base64; // キャッシュ
+          }
+        })
+        .catch(() => {});
     }
     // ② 関数グラフを自動描画
     else if (desc) {
