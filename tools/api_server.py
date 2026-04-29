@@ -428,6 +428,10 @@ def update_question(question_code: str, body: QuestionPatch):
         data["question_image_base64"] = data["image_base64"]
     data.pop("image_base64", None)
 
+    # 画像が送られた場合は figure_exists を自動的に 1 にする
+    if data.get("question_image_base64"):
+        data["figure_exists"] = 1
+
     fields = {k: v for k, v in data.items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="更新する値が指定されていません")
@@ -584,6 +588,8 @@ def search_questions(
                 q.sub_unit_name,
                 q.question_type,
                 q.figure_exists,
+                q.figure_description,
+                CASE WHEN q.question_image_base64 IS NOT NULL THEN 1 ELSE 0 END AS has_image,
                 q.ocr_clean_text,
                 q.answer_text,
                 q.confidence,
