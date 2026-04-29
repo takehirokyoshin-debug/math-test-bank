@@ -305,6 +305,15 @@ const API      = "https://scuttle-crisply-ladies.ngrok-free.dev";
 // ★ パスワードをここで設定してください ★
 const PASSWORD = "math2025";
 
+// ngrok の警告画面をスキップするため全リクエストにヘッダーを付与
+const _fetch = window.fetch;
+window.fetch = (url, opts = {}) => {
+  if (typeof url === "string" && url.startsWith(API)) {
+    opts.headers = { "ngrok-skip-browser-warning": "true", ...(opts.headers || {}) };
+  }
+  return _fetch(url, opts);
+};
+
 let unitList = [];
 
 // ===== ログイン =====

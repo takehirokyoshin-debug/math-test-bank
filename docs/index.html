@@ -271,6 +271,15 @@
 <script>
 const API = "https://scuttle-crisply-ladies.ngrok-free.dev";
 
+// ngrok の警告画面をスキップするため全リクエストにヘッダーを付与
+const _fetch = window.fetch;
+window.fetch = (url, opts = {}) => {
+  if (typeof url === "string" && url.startsWith(API)) {
+    opts.headers = { "ngrok-skip-browser-warning": "true", ...(opts.headers || {}) };
+  }
+  return _fetch(url, opts);
+};
+
 let questions    = [];
 let current      = 0;
 let score        = 0;
