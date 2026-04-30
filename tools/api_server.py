@@ -67,6 +67,7 @@ app = FastAPI(
     description="中学数学 定期テスト問題DB化基盤のローカルAPIサーバー",
     version="1.0.0",
     lifespan=lifespan,
+    servers=[{"url": "https://scuttle-crisply-ladies.ngrok-free.dev", "description": "ngrok tunnel"}],
 )
 
 # GPTs（外部）からのリクエストを受け付けるため CORS を許可する

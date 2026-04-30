@@ -294,54 +294,78 @@ let katexReady   = false;  // KaTeX のロード完了フラグ
  * $...$ または $$...$$ で囲まれた部分を数式表示に変換。
  * テキスト内の ^ や \frac が含まれていれば自動で $...$ を補完する。
  */
-function renderMath(el) {
-  if (!el || !window.renderMathInElement) return;
-
-  // テキスト内に数式記法があれば $ で囲まれていなくても処理できるよう補完
-  // 例: "x^2 + 3x - 1" → "$x^2 + 3x - 1$"
-  const text = el.textContent || "";
-  const hasMath = /[\^_]|\\frac|\\sqrt|\\times|\\div|\\pm|\\leq|\\geq|\\neq|\\cdot/.test(text);
-  if (hasMath && !/\$/.test(text)) {
-    // 数式記法はあるが $ がない場合、全体を inline math として扱う
-    el.textContent = `$${text}$`;
-  }
-
-  renderMathInElement(el, {
-    delimiters: [
-      { left: "$$", right: "$$", display: true  },
-      { left: "$",  right: "$",  display: false },
-    ],
-    throwOnError: false,
-    errorColor:   "#c53030",
+/** Unicode数学記号をKaTeX形式に変換（改行処理の後に各行に対して適用する） */
+function preprocessMath(text) {
+  if (!text) return text;
+  // 0. Unicode上付き文字を ^ 記法に統一（以降の処理で認識できるように）
+  text = text.replace(/²/g, '^2').replace(/³/g, '^3');
+  // 0b. √((expr)^N) → $\sqrt{(expr)^{N}}$（ルート内の累乗: √((π－3)^2) など）
+  text = text.replace(/√\(\(([^)]+)\)\^(\d+)\)/g, '$\\sqrt{($1)^{$2}}$');
+  // 1. (expr)^N → $(expr)^{N}$ （括弧を含む累乗: (-√7)^2 など）
+  text = text.replace(/\(([^)]+)\)\^(\d+)/g, (m, expr, exp) => {
+    const e = expr.replace(/√([a-zA-Z0-9]+)/g, '\\sqrt{$1}');
+    return `$(${e})^{${exp}}$`;
   });
+  // 2. √(N/D) → $\sqrt{\frac{N}{D}}$（括弧内の数字分数）
+  text = text.replace(/√\((\d+)\/(\d+)\)/g, '$\\sqrt{\\frac{$1}{$2}}$');
+  // 3. √(expr) → $\sqrt{expr}$（括弧あり）
+  text = text.replace(/√\(([^)]+)\)/g, '$\\sqrt{$1}$');
+  // 4a. N/√X → $\frac{N}{\sqrt{X}}$（分母にルート: 10/√8 など）
+  text = text.replace(/(\d+)\/√([a-zA-Z0-9]+)/g, '$\\frac{$1}{\\sqrt{$2}}$');
+  // 4b. √X/N → $\frac{\sqrt{X}}{N}$（ルートの外に分母: √2n/3 など）
+  text = text.replace(/√([a-zA-Z0-9]+)\/(\d+)/g, '$\\frac{\\sqrt{$1}}{$2}$');
+  // 5. √<英数字> → $\sqrt{...}$
+  text = text.replace(/√([a-zA-Z0-9]+)/g, '$\\sqrt{$1}$');
+  text = text.replace(/√/g, '$\\sqrt{}$');
+  // 6. 残りの N/M を縦分数に変換（既に $...$ 内のものはスキップ）
+  const parts = text.split(/(\$[^$]*\$)/);
+  text = parts.map((part, i) => {
+    if (i % 2 === 1) return part;  // $...$ 内はそのまま
+    return part.replace(/(\d+)\/(\d+)/g, '$\\frac{$1}{$2}$');
+  }).join('');
+  return text;
 }
 
-/** 問題文の改行位置を決める */
+/** 問題文の改行位置を決める（元のテキストに対して実行する） */
 function insertLineBreaks(text) {
   if (!text) return text;
   return text
-    .replace(/([。！？])\s*(?=\(\d+\))/g,  '$1\n')  // 。(1) の前で改行
-    .replace(/([。！？])\s*(?=（\d+）)/g,  '$1\n')  // 。（1）の前で改行
-    .replace(/\)\s*(?=\(\d+\))/g,          ')\n')   // )(1) の前で改行
-    .replace(/(\d)\s*(?=\(\d+\))/g,        '$1\n')  // 数字(1) の前で改行（例:10(2)）
-    .replace(/([。！？])\s*(?=[①-⑩])/g,  '$1\n')  // 。① の前で改行
-    .replace(/([^\s①-⑩])\s*(?=[②-⑩])/g,'$1\n'); // ①の内容②の前で改行（②③④...の遷移）
+    .replace(/([。！？])\s*(?=\(\d+\))/g,  '$1\n')
+    .replace(/([。！？])\s*(?=（\d+）)/g,  '$1\n')
+    .replace(/\)\s*(?=\(\d+\))/g,          ')\n')
+    .replace(/(\d)\s*(?=\(\d+\))/g,        '$1\n')
+    .replace(/([。！？])\s*(?=[①-⑩])/g,  '$1\n')
+    // ②③...の前: 数字・小数点の後のみ改行（①7②9/16③0 はOK, ①～④や...を②という は改行しない）
+    .replace(/([0-9.])\s*(?=[②-⑩])/g,   '$1\n');
 }
 
 /** テキストをセットして数式レンダリングも行う
- *  \n を <br> に変換してから KaTeX を実行する
- *  （KaTeX が textContent の \n を消してしまうため） */
+ *  改行検出→各行に数式変換→div挿入→KaTeX の順で処理する */
 function setMathText(el, text) {
   if (!el) return;
+  // 1. 改行を元テキストで検出（$...$挿入前に行う）
   const lines = insertLineBreaks(text || "").split('\n');
   el.innerHTML = '';
-  lines.forEach((line, i) => {
-    el.appendChild(document.createTextNode(line));
-    if (i < lines.length - 1) el.appendChild(document.createElement('br'));
+  // 2. 各行を数式変換してdivに挿入
+  lines.forEach((line) => {
+    const div = document.createElement('div');
+    div.textContent = preprocessMath(line);
+    el.appendChild(div);
   });
+  // 3. KaTeXでレンダリング
   const tryRender = () => {
-    if (window.renderMathInElement) renderMath(el);
-    else setTimeout(tryRender, 100);
+    if (window.renderMathInElement) {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true  },
+          { left: "$",  right: "$",  display: false },
+        ],
+        throwOnError: false,
+        errorColor:   "#c53030",
+      });
+    } else {
+      setTimeout(tryRender, 100);
+    }
   };
   tryRender();
 }

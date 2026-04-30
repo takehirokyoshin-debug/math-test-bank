@@ -146,6 +146,13 @@
     }
     .btn-load-fig:hover { background:#bee3f8; }
     .fig-none { color:#a0aec0; font-size:.8rem; margin-top:4px; }
+    .fig-upload { display:flex; align-items:center; gap:8px; margin-top:8px; }
+    .btn-upload-fig {
+      padding:6px 14px; background:#f0fff4; color:#276749;
+      border:1.5px solid #9ae6b4; border-radius:8px;
+      font-size:.85rem; font-weight:600; cursor:pointer;
+    }
+    .btn-upload-fig:hover { background:#c6f6d5; }
 
     .q-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
     .btn-save   { padding:8px 20px; background:#4299e1; color:#fff; border:none; border-radius:8px; font-size:.9rem; font-weight:700; cursor:pointer; }
@@ -453,23 +460,29 @@ function buildCard(q) {
     reviewed:     '<span class="badge green">✅ 確認済み</span>',
   }[q.status] || `<span class="badge">${q.status || ""}</span>`;
 
-  // 図表示：検索APIはhas_imageのみ返すため、画像は遅延読み込みする
-  let figureHtml = "";
+  // 図エリア：常にアップロードUIを表示
+  let figureContent = "";
   if (q.question_image_base64) {
-    // 詳細取得済みの場合は即表示
-    figureHtml = `<div class="q-field q-figure">
-      <label>図</label>
-      <img src="data:image/png;base64,${q.question_image_base64}" alt="図" />
-    </div>`;
+    figureContent = `<div id="fig-area-${q.question_code}"><img src="data:image/png;base64,${q.question_image_base64}" alt="図" /></div>`;
   } else if (q.has_image === 1 || q.figure_exists === 1) {
-    // has_image=1 だが未取得 → 読み込みボタンを表示
-    figureHtml = `<div class="q-field q-figure">
-      <label>図</label>
-      <div id="fig-area-${q.question_code}">
-        <button class="btn-load-fig" onclick="loadFigure('${q.question_code}')">🖼️ 図を表示</button>
-      </div>
+    figureContent = `<div id="fig-area-${q.question_code}">
+      <button class="btn-load-fig" onclick="loadFigure('${q.question_code}')">🖼️ 図を表示</button>
     </div>`;
+  } else {
+    figureContent = `<div id="fig-area-${q.question_code}"><span class="fig-none">図なし</span></div>`;
   }
+  const figureHtml = `<div class="q-field q-figure">
+    <label>図</label>
+    ${figureContent}
+    <div class="fig-upload">
+      <input type="file" id="fig-file-${q.question_code}" accept="image/*" style="display:none"
+             onchange="uploadFigure('${q.question_code}')">
+      <button class="btn-upload-fig" onclick="document.getElementById('fig-file-${q.question_code}').click()">
+        📁 図をアップロード
+      </button>
+      <span id="fig-upload-status-${q.question_code}" style="font-size:.8rem"></span>
+    </div>
+  </div>`;
 
   card.innerHTML = `
     <div class="q-header">
@@ -524,6 +537,39 @@ function buildCard(q) {
     </div>
   `;
   return card;
+}
+
+// ===== 図をアップロード =====
+async function uploadFigure(code) {
+  const fileInput = document.getElementById(`fig-file-${code}`);
+  const statusEl  = document.getElementById(`fig-upload-status-${code}`);
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  statusEl.textContent = "変換中…";
+  statusEl.style.color = "#718096";
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+    statusEl.textContent = "送信中…";
+    try {
+      const res = await fetch(`${API}/questions/${code}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ question_image_base64: base64, figure_exists: 1 }),
+      });
+      if (!res.ok) throw new Error();
+      statusEl.textContent = "✅ 登録完了";
+      statusEl.style.color = "#276749";
+      document.getElementById(`fig-area-${code}`).innerHTML =
+        `<img src="data:image/png;base64,${base64}" alt="図" />`;
+    } catch {
+      statusEl.textContent = "❌ 登録失敗";
+      statusEl.style.color = "#e53e3e";
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 // ===== 図を遅延読み込み =====
