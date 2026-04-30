@@ -315,10 +315,20 @@ function renderMath(el) {
   });
 }
 
+/** 問題文の改行を整える（句点＋小問番号の前で改行） */
+function insertLineBreaks(text) {
+  if (!text) return text;
+  return text
+    .replace(/。(\s*)\((\d+)\)/g, '。\n($2)')   // 。(1) → 改行
+    .replace(/。(\s*)（(\d+)）/g, '。\n（$2）') // 。（1）→ 改行
+    .replace(/。(\s*)(\d+)\./g,   '。\n$2.')    // 。1. → 改行
+    .replace(/([。！？])(\s*)([①②③④⑤⑥⑦⑧⑨⑩])/g, '$1\n$3'); // 。① → 改行
+}
+
 /** テキストをセットして数式レンダリングも行う */
 function setMathText(el, text) {
   if (!el) return;
-  el.textContent = text || "";
+  el.textContent = insertLineBreaks(text) || "";
   // KaTeX がロード済みかポーリングして実行（defer のため）
   const tryRender = () => {
     if (window.renderMathInElement) {
