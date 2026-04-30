@@ -316,27 +316,31 @@ function renderMath(el) {
   });
 }
 
-/** 問題文の改行を整える（句点＋小問番号の前で改行） */
+/** 問題文の改行位置を決める */
 function insertLineBreaks(text) {
   if (!text) return text;
   return text
-    .replace(/。(\s*)\((\d+)\)/g, '。\n($2)')   // 。(1) → 改行
-    .replace(/。(\s*)（(\d+)）/g, '。\n（$2）') // 。（1）→ 改行
-    .replace(/。(\s*)(\d+)\./g,   '。\n$2.')    // 。1. → 改行
-    .replace(/([。！？])(\s*)([①②③④⑤⑥⑦⑧⑨⑩])/g, '$1\n$3'); // 。① → 改行
+    .replace(/([。！？])\s*(?=\(\d+\))/g,  '$1\n')  // 。(1) の前で改行
+    .replace(/([。！？])\s*(?=（\d+）)/g,  '$1\n')  // 。（1）の前で改行
+    .replace(/\)\s*(?=\(\d+\))/g,          ')\n')   // )(1) の前で改行
+    .replace(/(\d)\s*(?=\(\d+\))/g,        '$1\n')  // 数字(1) の前で改行（例:10(2)）
+    .replace(/([。！？])\s*(?=[①-⑩])/g,  '$1\n'); // 。① の前で改行
 }
 
-/** テキストをセットして数式レンダリングも行う */
+/** テキストをセットして数式レンダリングも行う
+ *  \n を <br> に変換してから KaTeX を実行する
+ *  （KaTeX が textContent の \n を消してしまうため） */
 function setMathText(el, text) {
   if (!el) return;
-  el.textContent = insertLineBreaks(text) || "";
-  // KaTeX がロード済みかポーリングして実行（defer のため）
+  const lines = insertLineBreaks(text || "").split('\n');
+  el.innerHTML = '';
+  lines.forEach((line, i) => {
+    el.appendChild(document.createTextNode(line));
+    if (i < lines.length - 1) el.appendChild(document.createElement('br'));
+  });
   const tryRender = () => {
-    if (window.renderMathInElement) {
-      renderMath(el);
-    } else {
-      setTimeout(tryRender, 100);
-    }
+    if (window.renderMathInElement) renderMath(el);
+    else setTimeout(tryRender, 100);
   };
   tryRender();
 }
