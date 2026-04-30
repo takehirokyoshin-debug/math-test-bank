@@ -93,11 +93,11 @@
       border: 1.5px solid #e2e8f0;
       border-radius: 10px;
       padding: 18px;
-      white-space: pre-wrap;
       font-size: 1rem;
       line-height: 1.8;
       min-height: 80px;
-      white-space: pre-wrap;
+      overflow-wrap: break-word;
+      word-break: break-word;
       margin-bottom: 14px;
     }
 
@@ -324,7 +324,8 @@ function insertLineBreaks(text) {
     .replace(/([。！？])\s*(?=（\d+）)/g,  '$1\n')  // 。（1）の前で改行
     .replace(/\)\s*(?=\(\d+\))/g,          ')\n')   // )(1) の前で改行
     .replace(/(\d)\s*(?=\(\d+\))/g,        '$1\n')  // 数字(1) の前で改行（例:10(2)）
-    .replace(/([。！？])\s*(?=[①-⑩])/g,  '$1\n'); // 。① の前で改行
+    .replace(/([。！？])\s*(?=[①-⑩])/g,  '$1\n')  // 。① の前で改行
+    .replace(/([^\s①-⑩])\s*(?=[②-⑩])/g,'$1\n'); // ①の内容②の前で改行（②③④...の遷移）
 }
 
 /** テキストをセットして数式レンダリングも行う
